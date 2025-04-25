@@ -1,0 +1,15 @@
+# definitions for this entire project
+.github
+.n8n
+.env
+.env.example
+.terraform
+.terraform.lock.hcl
+.terraform/providers
+n8n-aws-terraform/.terraform/
+terraform.tfstate
+terraform.tfstate.backup
+terraform.tfstate.lock.info
+n8n-aws-terraform/n8n-ec2-key.pem
+**/.terraform/*
+**/.terraform/providers/*
