@@ -8,7 +8,14 @@ resource "aws_instance" "n8n_ec2" {
   vpc_security_group_ids      = [aws_security_group.n8n_ec2_sg.id]
   associate_public_ip_address = true
   key_name                    = aws_key_pair.n8n_ec2.key_name
-  user_data                   = file("${path.module}/scripts/user_data.sh")
+  user_data = templatefile("${path.module}/scripts/user_data.sh", {
+    rds_endpoint = aws_db_instance.n8n_rds.address
+    db_name      = aws_db_instance.n8n_rds.db_name
+    db_username  = aws_db_instance.n8n_rds.username
+    db_password  = var.n8n_rds_password
+    n8n_host     = "${var.n8n_subdomain}.${var.route53_zone_name}"
+    WEBHOOK_URL  = "https://${var.n8n_subdomain}.${var.route53_zone_name}/"
+  })
 
   tags = {
     Name = "n8n-ec2"

@@ -15,7 +15,7 @@ resource "aws_db_subnet_group" "n8n_rds_subnet_group" {
 # --- Parameter Group (optional: for custom Postgres settings) ---
 resource "aws_db_parameter_group" "n8n_rds_pg" {
   name        = "n8n-rds-pg"
-  family      = "postgres15"
+  family      = "postgres17"
   description = "Custom parameter group for n8n Postgres"
   tags        = var.default_tags
 

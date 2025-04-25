@@ -23,7 +23,7 @@ resource "aws_lb_target_group" "n8n_tg" {
   protocol = "HTTP"
   vpc_id   = local.vpc_id
   health_check {
-    path                = "/healthz"
+    path                = "/"
     protocol            = "HTTP"
     matcher             = "200-399"
     interval            = 30

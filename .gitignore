@@ -13,3 +13,4 @@ terraform.tfstate.lock.info
 n8n-aws-terraform/n8n-ec2-key.pem
 **/.terraform/*
 **/.terraform/providers/*
+**/.terraform.tfstate.lock.info

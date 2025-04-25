@@ -164,6 +164,26 @@ EOT
 # --- Private Subnet CIDRs ---
 # private_subnet_cidrs are now calculated automatically from the VPC CIDR and number of AZs. Advanced users may override by defining this variable manually.
 # --- Availability Zones ---
+
+variable "n8n_rds_db_name" {
+  description = "Database name for n8n RDS Postgres instance."
+  type        = string
+  default     = "n8n"
+}
+
+variable "n8n_rds_username" {
+  description = "Database username for n8n RDS Postgres instance."
+  type        = string
+  default     = "n8nadmin"
+}
+
+variable "n8n_rds_password" {
+  description = "Database password for n8n RDS Postgres instance."
+  type        = string
+  sensitive   = true
+  default     = "changeme123"
+}
+
 # azs is now defaulted to all available zones in region using data source.
 # --- EC2 AMI ---
 data "aws_ssm_parameter" "ubuntu_ami" {
@@ -210,7 +230,7 @@ variable "db_engine_version" {
 The version of PostgreSQL to use for your RDS instance.
 EOT
   type        = string
-  default     = "15.2"
+  default     = "17.4"
 }
 # --- DB Instance Class ---
 variable "db_instance_class" {
