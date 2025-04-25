@@ -1,63 +1,159 @@
-# N8N AWS Terraform Deployment
+# n8n AWS Terraform Quick Start Guide
 
-This project provisions the infrastructure to run N8N on AWS using Terraform. It is designed for beginners and walks you through each step to create and manage a production-ready stack on AWS.
-
-## What Gets Created
-This Terraform stack will automatically provision and configure the following AWS resources:
-
-- **VPC**: A dedicated, isolated Virtual Private Cloud for N8N, with DNS support and hostnames enabled.
-- **Public Subnets**: Two public subnets (for high availability) with CIDRs calculated automatically.
-- **Private Subnets**: Two private subnets (for high availability) with CIDRs calculated automatically.
-- **Internet Gateway**: Allows internet access for public subnets.
-- **NAT Gateway**: Allows outbound internet access from private subnets.
-- **Route Tables & Associations**: Proper routing for public/private access.
-- **EC2 Instance**: Runs N8N in Docker, with an attached EBS volume for persistent data.
-- **EBS Volume**: Persistent storage for N8N workflows/files, automatically placed in the correct AZ.
-- **RDS PostgreSQL**: Managed, production-grade Postgres database with subnet group, parameter group, backups, encryption, and multi-AZ (by default).
-- **Redis (ElastiCache)**: (Optional) Managed Redis for N8N queue mode.
-- **Application Load Balancer (ALB)**: (Optional) For HTTPS, scaling, and health checks.
-- **ACM Certificate**: Automatically provisioned SSL certificate for your subdomain.
-- **Route53 DNS**: DNS records for your custom N8N domain/subdomain.
-- **Security Groups**: Strict firewall rules for EC2, RDS, Redis, and ALB. SSH access is automatically restricted to the IP running terraform apply.
-- **Budget & Monitoring**: AWS Budgets and CloudWatch alarms for cost control and resource monitoring.
-
-**All networking (VPC, subnet CIDRs) and SSH access are fully automated.** You do not need to manually configure subnet IDs, CIDRs, or SSH CIDR blocks.
+This guide makes it easy for new developers to deploy n8n on AWS using Terraform. It explains each step, the role of every file, and how to use the included scripts for a secure, production-ready setup.
 
 ---
 
-## Project Structure (Terraform)
+## What Does This Deploy?
+Terraform will automatically set up:
+- **VPC, Subnets, Routing:** Secure network isolation with public/private subnets, NAT, and all routing handled for you.
+- **EC2 Instance:** Runs n8n in Docker, using an EBS volume for persistent data.
+- **RDS PostgreSQL:** Managed database for workflows and credentials.
+- **(Optional) Redis (ElastiCache):** For n8n queue mode and scaling.
+- **(Optional) Application Load Balancer (ALB) & ACM:** For HTTPS and scaling.
+- **Route53 DNS:** Custom subdomain for your n8n instance.
+- **Security Groups:** Strict firewall rules, with SSH access restricted to your IP.
+- **Budget & Monitoring:** AWS Budgets and CloudWatch alarms for cost control.
+
+No need to manually manage subnet IDs, CIDRs, or SSH rules—everything is automated!
+
+---
+
+## Folder & File Overview
 ```
 n8n-aws-terraform/
-├── main.tf                # Documentation/orchestration only
-├── variables.tf           # All configurable variables (edit here!)
-├── terraform.tfvars       # User secrets/values (never commit secrets)
-├── outputs.tf             # Useful info after apply (IP, DNS, etc.)
-├── provider.tf            # AWS provider setup
-├── vpc.tf                 # VPC, subnets, NAT, routing
-├── ec2.tf                 # EC2 instance, EBS storage
+├── main.tf                # Orchestrates resources (docs only)
+├── variables.tf           # All config options (edit this first!)
+├── terraform.tfvars       # Your secrets/values (never commit this)
+├── outputs.tf             # Shows connection info after apply
+├── provider.tf            # AWS provider config
+├── vpc.tf                 # Networking (VPC, subnets, NAT)
+├── ec2.tf                 # EC2 instance, EBS volume
 ├── rds.tf                 # RDS Postgres
-├── security_groups.tf     # All security groups
-├── load_balancer.tf       # ALB, ACM, SSL
+├── security_groups.tf     # All firewall rules
+├── load_balancer.tf       # ALB, ACM, SSL (optional)
 ├── route53.tf             # DNS records
 ├── budget_monitoring.tf   # Budgets & CloudWatch
+├── locals.tf              # Internal networking logic (no user edits)
 ├── scripts/
-│   └── user_data.sh       # EC2 bootstrap script (edit for custom Docker env)
-├── .gitignore             # Includes .terraform/, scripts/, etc.
+│   ├── user_data.sh       # EC2 bootstrap: installs Docker, runs n8n
+│   └── set_n8n_env.sh     # Helper to set env vars for manual use
 └── README.md              # This file
 ```
 
-Other folders:
-- `n8n-aws-docker/`: Run N8N locally with Docker Compose (for dev/testing)
-- `n8n-aws-bash/`: Bash scripts for manual EC2 setup (advanced/manual use)
+---
 
-**Notes:**
-- `.gitignore` excludes `.terraform/`, lock files, and `scripts/` for security.
-- Networking (VPC, public/private subnets, and their IDs and CIDRs) is now fully automated. You do **not** need to supply VPC or subnet IDs or subnet CIDRs unless using pre-existing infrastructure or have advanced networking needs. All are managed internally using `locals.tf`.
-- The ACM certificate can be managed by Terraform (recommended) or you can provide an ARN.
-- Edit `scripts/user_data.sh` to customize your EC2 Docker environment (env vars, etc).
-- Never commit secrets (passwords, private keys, etc) to version control.
+## Step-by-Step Setup
+
+### 1. Prerequisites
+- AWS Account ([sign up](https://aws.amazon.com/))
+- [Terraform](https://www.terraform.io/downloads.html)
+- [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+- Domain managed in Route53 (for HTTPS and custom DNS)
+
+### 2. Configure AWS Credentials
+```sh
+aws configure
+```
+Enter your AWS Access Key, Secret Key, region (e.g., `us-east-1`), and output format (`json`).
+
+### 3. Edit Variables
+- Open `variables.tf` for descriptions and guidance on each variable.
+- Place your actual values (passwords, subdomain, etc.) in `terraform.tfvars`.
+  - **Never commit secrets!**
+- Key variables:
+  - `route53_zone_name`: Your domain (e.g., `example.com`)
+  - `n8n_subdomain`: Subdomain for n8n (default: `n8n`)
+  - `azs`: At least two availability zones for high availability
+  - `acm_certificate_arn`: (Optional) Use your own ACM cert, or let Terraform create one
+
+### 4. Initialize Terraform
+```sh
+terraform init
+```
+
+### 5. Review the Plan
+```sh
+terraform plan
+```
+See what will be created/changed.
+
+### 6. Apply the Configuration
+```sh
+terraform apply
+```
+Type `yes` when prompted. This provisions all AWS resources.
+
+### 7. Check the Outputs
+After apply, Terraform will show:
+- EC2 public IP and DNS
+- RDS endpoint
+- DNS record (e.g., `n8n.example.com`)
+
+### 8. Access Your n8n Instance
+- Wait a few minutes for AWS to finish provisioning.
+- Visit your custom domain (e.g., `https://n8n.example.com`).
+- Log in and start building workflows!
 
 ---
+
+## How Each Terraform File Works
+- **main.tf**: Documentation only; all resources are auto-included.
+- **provider.tf**: Configures AWS provider and region.
+- **variables.tf**: All user-editable settings (with inline help). VPC and subnet IDs/CIDRs are automated unless using advanced networking.
+- **terraform.tfvars**: Your secrets and values. **Never commit this file!**
+- **scripts/user_data.sh**: EC2 bootstrap script. Installs Docker and runs n8n with best practices (persistent EBS data, env vars, HTTPS, etc.).
+- **scripts/set_n8n_env.sh**: Helper for manual setup or troubleshooting—exports all required environment variables and shows example DB commands.
+- **outputs.tf**: Shows connection info after deployment.
+- **locals.tf**: Internal logic for networking. No user edits needed.
+
+---
+
+## Environment Variables & Scripts
+- The EC2 instance uses environment variables for database and n8n configuration. These are set automatically by Terraform and passed to Docker in `user_data.sh`.
+- To manually set up or troubleshoot, SSH into the EC2 instance and use `scripts/set_n8n_env.sh`.
+- Example environment variables (see `set_n8n_env.sh`):
+  - `DB_TYPE`, `DB_POSTGRESDB_HOST`, `DB_POSTGRESDB_USER`, `DB_POSTGRESDB_PASSWORD`, `n8n_host`, `WEBHOOK_URL`, etc.
+
+---
+
+## Outputs
+After `terraform apply`, look for:
+- EC2 public IP and DNS
+- RDS endpoint
+- DNS record (use this in your browser)
+
+---
+
+## Security & Best Practices
+- **Never commit secrets to version control.**
+- SSH access is restricted to the IP running `terraform apply`.
+- Use IAM roles and least-privilege access.
+- Enable budget alerts to avoid surprise bills.
+- EBS volume is encrypted by default.
+- Review security group rules and adjust as needed.
+
+---
+
+## Troubleshooting & Customization
+- All networking and most variables are automated. Only advanced users need to customize VPC/subnet IDs.
+- To destroy all resources, run:
+  ```sh
+  terraform destroy
+  ```
+- For local dev, use `../n8n-aws-docker/` with Docker Compose.
+- For manual EC2 setup, see scripts in `../n8n-aws-bash/`.
+
+---
+
+## Need Help?
+- See comments in each `.tf` file for details.
+- Official [Terraform docs](https://www.terraform.io/docs/)
+- Official [AWS docs](https://docs.aws.amazon.com/)
+
+---
+
+Happy automating with n8n on AWS!
 
 ## Step-by-Step Guide for Beginners
 
